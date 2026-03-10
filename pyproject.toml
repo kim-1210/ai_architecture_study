@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "grab>=1.2.0",
     "numpy>=2.2.6",
     "scipy>=1.15.3",
     "torch>=2.10.0",
