@@ -10,20 +10,26 @@ class Encoder(nn.Module):
         super().__init__()
 
         self.layers = [
-            nn.Conv2d(input_dim, 64, 3, 1, 1),
+            nn.Conv2d(input_dim, 64, 4, 2, 1),
+            nn.GroupNorm(8, 64),
+            nn.SiLU(),
+            nn.Conv2d(64, 64, 4, 2, 1),
             nn.GroupNorm(8, 64),
             nn.SiLU(),
             nn.Conv2d(64, 64, 3, 1, 1),
             nn.GroupNorm(8, 64),
             nn.SiLU(),
-            nn.Conv2d(64, latent_dim, 3, 1, 1),
         ]
 
-        self.model = nn.Sequential(*self.layers)
+        self.backbone = nn.Sequential(*self.layers)
+        self.to_mu = nn.Conv2d(64, latent_dim, 1, 1, 0)
+        self.to_logvar = nn.Conv2d(64, latent_dim, 1, 1, 0)
 
     def forward(self, x):
-        z = self.model(x)
-        return z
+        h = self.backbone(x)
+        mu = self.to_mu(h)
+        logvar = self.to_logvar(h)
+        return mu, logvar
     
 class Decoder(nn.Module):
     def __init__(self, latent_dim, output_dim, img_size):
@@ -32,10 +38,10 @@ class Decoder(nn.Module):
         self.img_size = img_size
 
         self.layers = [
-            nn.Conv2d(latent_dim, 64, 3, 1, 1),
+            nn.ConvTranspose2d(latent_dim, 64, 4, 2, 1),
             nn.GroupNorm(8, 64),
             nn.SiLU(),
-            nn.Conv2d(64, 64, 3, 1, 1),
+            nn.ConvTranspose2d(64, 64, 4, 2, 1),
             nn.GroupNorm(8, 64),
             nn.SiLU(),
             nn.Conv2d(64, output_dim, 3, 1, 1),
@@ -55,13 +61,30 @@ class VAE(nn.Module):
         self.encoder = Encoder(input_dim, latent_dim)
         self.decoder = Decoder(latent_dim, output_dim, img_size)
 
-    def encode(self, x):
+    @staticmethod
+    def reparameterize(mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return mu + eps * std
+
+    @staticmethod
+    def kl_loss(mu, logvar):
+        return -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+
+    def encode_stats(self, x):
         return self.encoder(x)
+
+    def encode(self, x):
+        mu, logvar = self.encode_stats(x)
+        return self.reparameterize(mu, logvar)
     
     def decode(self, z):
         return self.decoder(z)
 
-    def forward(self, x):
-        z = self.encode(x)
+    def forward(self, x, return_stats=False):
+        mu, logvar = self.encode_stats(x)
+        z = self.reparameterize(mu, logvar)
         x_recon = self.decode(z)
+        if return_stats:
+            return x_recon, z, mu, logvar
         return x_recon, z
