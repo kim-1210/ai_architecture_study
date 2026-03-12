@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "grab>=1.2.0",
+    "gymnasium[mujoco]>=1.2.3",
     "numpy>=2.2.6",
     "scipy>=1.15.3",
     "torch>=2.10.0",
