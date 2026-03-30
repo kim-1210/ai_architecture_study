@@ -10,12 +10,12 @@ class PositionalEmbedding(nn.Module):
         self.dim = dim
         self.scale = scale
 
-    def forward(self, x):
-        device = x.device
+    def forward(self, t):
+        device = t.device
         half_dim = self.dim // 2
         emb = math.log(10000) / half_dim
         emb = torch.exp(torch.arange(half_dim, device=device) * -emb)
-        emb = torch.outer(x * self.scale, emb)
+        emb = torch.outer(t * self.scale, emb)
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
         return emb
 
@@ -91,7 +91,7 @@ class TransformerBlock(nn.Module):
         )
         self.gamma_1 = nn.Linear(dim, dim) # scale_msa
         self.beta_1 = nn.Linear(dim, dim) # shift_msa
-        self.gamma_2 = nn.Linear(dim, dim) # # scale_mlp
+        self.gamma_2 = nn.Linear(dim, dim) # scale_mlp
         self.beta_2 = nn.Linear(dim, dim) # shift_mlp
         self.scale_1 = nn.Linear(dim, dim) # gate_msa
         self.scale_2 = nn.Linear(dim, dim) # gate_mlp
